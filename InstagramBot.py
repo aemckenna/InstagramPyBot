@@ -1,8 +1,13 @@
 # Imports
 import openai
+from openai import OpenAI
+from pathlib import Path
 
 # Determined Topic (change this value to set Instagram bot to post differently)
 topic_mode = "country"
+
+client = OpenAI()
+
 
 # Function to interact with GPT-3
 openai.api_key = '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'
@@ -54,10 +59,38 @@ else:
 
 # Creating content based on user input
 if post_type == "reel":
-    # HERE: Add code for creating reel content
-    pass
+
+    # Generating script to pass on to ElevenLabs
+    video_script = f'Write a script for a 30 second reel on {content_topic} the {topic_mode}.'
+    topic_check_response = ChatGPT(video_script)
+    
+    # Using ChatGPT text to speech to download audio for reel
+    speech_file_path = Path(__file__).parent / (f"{content_topic}.mp3")
+    response = client.audio.speech.create(
+    model = "tts-1-hd",
+    voice = "onyx",
+    input = video_script
+    )
+
+    response.stream_to_file(speech_file_path)
+
+    # Generating prompts to pass on to Dall-E-3
+    
+
+    # Generating images that will then be animated for the reel
+    response = client.images.generate(
+    model="dall-e-3",
+    prompt="a white siamese cat",
+    size="1024x1024",
+    quality="standard",
+    n=1,
+    )
+
+image_url = response.data[0].url
+
 elif post_type == "image":
     # HERE: Add code for creating image content
+
     pass
 else:
     print("Something is not right... Try again.")
