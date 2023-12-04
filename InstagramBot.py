@@ -4,6 +4,9 @@
 # Interact with user to request country to make content from
 
 
+# Check to confirm that it is a country
+
+
 # Connect with ChatGPT AI to get summary of that country
 
 
