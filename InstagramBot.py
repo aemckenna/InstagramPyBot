@@ -4,6 +4,10 @@ from pathlib import Path
 import requests
 import os
 from google.cloud import texttospeech
+from moviepy.editor import VideoClip, VideoFileClip, CompositeVideoClip, concatenate_videoclips
+from moviepy.audio.io.AudioFileClip import AudioFileClip
+from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+import time
 
 # Determined Topic (change this value to set Instagram bot to post differently)
 topic_mode = "country"
@@ -23,7 +27,7 @@ def ChatGPT(prompt):
 
 # Function that returns true if the word is found
 def WordFinder(sentence, word):
-    
+
     # Breaking the sentence into words
     s = sentence.split(" ")
 
@@ -93,28 +97,65 @@ if post_type == "reel":
     with open(audio_file_path, "wb") as audio_file:
         audio_file.write(response_tts.audio_content)
 
-    # Generating prompts to pass on to Dall-E-3
-    video_script = f'Write a script for a 30 second reel on {content_topic} the {topic_mode}.'
-    topic_check_response = ChatGPT(video_script)
+    # Generating prompts to pass on to DALL-E-3
+    image_prompt = f'Give me a list of five things about {content_topic} with no descriptions.'
+    image_prompt_output = ChatGPT(image_prompt)
+
+    # Formatting and stripping to not include numbers or punctuation
+    image_prompt_list = image_prompt_output.split('\n')
+    image_prompt_list = [item.strip('1-5, .') for item in image_prompt_list if item]
+
+    # Convert the list to a dictionary without index formatting
+    image_prompts_dictionary = {f"Item {index + 1}": item for index, item in enumerate(image_prompt_list)}
 
     # Creating a new folder to save the images
     os.makedirs(content_topic, exist_ok=True)
 
     # Generating images that will then be animated for the reel
-    dalle3_image = openai.Image.create(
-        prompt=content_topic, 
-        n=4, 
-        size="1024x1024")
+    for index, prompt in image_prompts_dictionary.items():
+        image = openai.Image.create(prompt=f"{content_topic}'s {prompt}", n=1, size="1024x1024")
+        image_url = image['data'][0]['url']
+        
+        # Downloading the image
+        image_data = requests.get(image_url).content
 
-    # Getting URL and downloading image
-    image_url = dalle3_image.data[0].url
-    image_data = requests.get(image_url).content
-    image_name = f"{content_topic}_image1.png"
+        # Saving each image to a separate file in the new folder
+        image_path = os.path.join(content_topic, f"{content_topic}_{index}.png")
+        with open(image_path, "wb") as f:
+            f.write(image_data)
 
-    # Saving the image to a file in the new folder
-    image_path = os.path.join(content_topic, image_name)
-    with open(image_path, "wb") as f:
-        f.write(image_data)
+    time.sleep(30)
+
+    # Dynamically generate the image list from the folder
+    image_folder_path = content_topic
+    image_list = [os.path.join(image_folder_path, file) for file in os.listdir(image_folder_path) if file.lower().endswith(('.png'))]
+
+    # Use MoviePy to create a video and render
+    def create_video(image_list, audio_file):
+        # Calculate the duration of the audio file
+        audio_duration = AudioFileClip(audio_file).duration
+
+        # Load images dynamically from the folder with equal spacing
+        clips = [ImageSequenceClip([image], fps=1).set_duration(audio_duration / len(image_list)) for image in image_list]
+
+        # Load audio
+        audio = AudioFileClip(audio_file)
+
+        # Set audio for each clip
+        clips_with_audio = [clip.set_audio(audio) for clip in clips]
+
+        # Concatenate video clips
+        final_clip = concatenate_videoclips(clips_with_audio, method="compose")
+
+        # Write the final video file
+        final_clip.write_videofile(f'{content_topic}_{topic_mode}_FINAL.mp4', codec="libx264", audio_codec="aac")
+
+    if __name__ == "__main__":
+        # Audio file name
+        audio_file = f'{content_topic}_audio.mp3'
+
+        # Create the video with images and audio
+        create_video(image_list, audio_file)
 
 elif post_type == "image":
     pass
@@ -123,17 +164,10 @@ else:
     print("Something is not right... Try again.")
     exit()
 
-# Use MoviePy to create a video and render
-# Add your MoviePy code here
-
 # Login to Instagram
-# Add your Instagram login code here
 
 # Use ChatGPT to write a caption and generate hashtags
 caption_prompt = f"Write a caption and generate hashtags for a {post_type} post on {content_topic}."
 caption_response = ChatGPT(caption_prompt)
 
 # Post video to Instagram
-# Add your Instagram post code here
-
-# End of the script
