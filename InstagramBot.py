@@ -2,12 +2,12 @@
 import openai
 from openai import OpenAI
 from pathlib import Path
+import requests
+import os
 
 # Determined Topic (change this value to set Instagram bot to post differently)
 topic_mode = "country"
-
 client = OpenAI()
-
 
 # Function to interact with GPT-3
 openai.api_key = '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'
@@ -17,7 +17,7 @@ def ChatGPT(prompt):
         prompt=prompt,
         max_tokens=150,
         temperature=0.7,
-        stop=None  # You can specify custom stop words/phrases
+        stop=None
     )
     return response.choices[0].text.strip()
 
@@ -75,47 +75,42 @@ if post_type == "reel":
     response.stream_to_file(speech_file_path)
 
     # Generating prompts to pass on to Dall-E-3
-    
+    video_script = f'Write a script for a 30 second reel on {content_topic} the {topic_mode}.'
+    topic_check_response = ChatGPT(video_script)
+
+    # Creating a new folder to save the images
+    os.makedirs(content_topic, exist_ok=True)
 
     # Generating images that will then be animated for the reel
     response = client.images.generate(
-    model="dall-e-3",
-    prompt="a white siamese cat",
-    size="1024x1024",
-    quality="standard",
-    n=1,
+    model = "dall-e-3",
+    prompt = "a white siamese cat",
+    size = "1080x1920",
+    qualit = "hd",
+    n = 1,
     )
 
-image_url = response.data[0].url
+    # Getting URL and downloading image
+    image_url = response.data[0].url
+    image_data = requests.get(image_url).content
+    image_name = f"{content_topic}_image1.png"
+
+    # Saving the image to a file in the new folder
+    image_path = os.path.join(content_topic, image_name)
+    with open(image_path, "wb") as f:
+        f.write(image_data)
 
 elif post_type == "image":
-    # HERE: Add code for creating image content
-
     pass
+
 else:
     print("Something is not right... Try again.")
     exit()
 
-# Connect with ChatGPT AI to get a summary of that country
-# HERE: Add code to interact with ChatGPT for country summary
-
-# Pass summary to ElevenLabs
-# HERE: Add code to pass summary to ElevenLabs
-
-# Pass the country name to AI Image generator
-# HERE: Add code to pass the country name to AI Image generator
-
-# Store images in the directory
-# HERE: Add code to store images in the directory
-
 # Use MoviePy to create a video and render
-# HERE: Add code to use MoviePy to create a video and render
 
 # Login to Instagram
-# HERE: Add code to login to Instagram
 
 # Use ChatGPT to write a caption and generate hashtags
-# HERE: Add code to use ChatGPT for writing a caption and generating hashtags
 
 # Post video to Instagram
-# HERE: Add code to post the video to Instagram
