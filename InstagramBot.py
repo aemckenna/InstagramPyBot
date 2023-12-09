@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from urllib.parse import urljoin
 from instagrapi.types import User
 
-
 # Determined Topic (change this value to set Instagram bot to post differently)
 topic_mode = "country"
 
@@ -41,9 +40,10 @@ def WordFinder(sentence, word):
             return True
     return False
 
-# Interacting with the user to determine post type
-print("Would you like to make an \"image\" post or a \"reel\"?")
-post_type = input().lower()
+# Interacting with the user to determine post type 
+#Setting to reel only
+#print("Would you like to make an \"image\" post or a \"reel\"?")
+post_type = "reel"
 
 # Checking to confirm the user entered a valid option
 if not (WordFinder(post_type, "reel") or WordFinder(post_type, "image")):
@@ -72,14 +72,14 @@ if post_type == "reel":
     # Set the environment variable to the path of your service account key file
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/ashermckenna/Documents/InstagraPy/InstagramPyBot/rapid-pivot-407416-88aae5fe7262.json"
 
-    # Create a Text-to-Speech client
+    # Creating a Text-to-Speech client
     client_tts = texttospeech.TextToSpeechClient()
 
-    # Set the text to be synthesized
+    # Setting the text to be synthesized
     text_to_speak = f"Write a script for a 30 second reel on {content_topic} the {topic_mode}."
     script = ChatGPT(text_to_speak)
 
-    # Select the voice and other parameters
+    # Selecting the voice and other parameters
     voice_tts = texttospeech.VoiceSelectionParams(
         language_code="en-US",
         name="en-US-Wavenet-D",
@@ -161,6 +161,7 @@ if post_type == "reel":
         final_clip.write_videofile(f'{content_topic}_{topic_mode}_FINAL.mp4', fps=24, codec='libx264', audio=True, audio_codec="aac")
 
     video = f'{content_topic}_{topic_mode}_FINAL.mp4'
+
     # Create the video with images and audio
     create_video(image_list, audio_file)
 
@@ -178,7 +179,7 @@ if post_type == "reel":
     video_path = f'{content_topic}_{topic_mode}_FINAL.mp4'
 
     try:
-        # Initialize the instagrapi client
+        # Initializing the instagrapi client
         cl = Client()
         cl.login(username, password)
 
@@ -195,14 +196,11 @@ if post_type == "reel":
         # Logout after uploading
         cl.logout()
 
+    # Catching some weird expections that pop up due to certain instagram account settings
     except CustomInstagrapiException as e:
         print("Video uploaded")
     except Exception as e:
         print("Video Uploaded")
-
-
-elif post_type == "image":
-    pass
 
 else:
     print("Something is not right... Try again.")
