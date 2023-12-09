@@ -4,10 +4,15 @@ from pathlib import Path
 import requests
 import os
 from google.cloud import texttospeech
-from moviepy.editor import VideoClip, VideoFileClip, CompositeVideoClip, concatenate_videoclips
+from moviepy.editor import VideoClip, concatenate_videoclips
 from moviepy.audio.io.AudioFileClip import AudioFileClip
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 import time
+from instagrapi import Client
+from datetime import datetime, timezone
+from urllib.parse import urljoin
+from instagrapi.types import User
+
 
 # Determined Topic (change this value to set Instagram bot to post differently)
 topic_mode = "country"
@@ -93,11 +98,14 @@ if post_type == "reel":
     )
 
     # Save the audio to a file
-    audio_file_path = Path(__file__).parent / (f"{content_topic}_audio.mp3")
+    audio_file_path = Path(__file__).parent / f"{content_topic}_audio.mp3"
     with open(audio_file_path, "wb") as audio_file:
         audio_file.write(response_tts.audio_content)
 
-    # Generating prompts to pass on to DALL-E-3
+    # Create the audio file variable
+    audio_file = str(audio_file_path)
+
+    # Generate prompts to pass on to DALL-E-3
     image_prompt = f'Give me a list of five things about {content_topic} with no descriptions.'
     image_prompt_output = ChatGPT(image_prompt)
 
@@ -126,11 +134,11 @@ if post_type == "reel":
 
     time.sleep(30)
 
-    # Dynamically generate the image list from the folder
+    # Generate the image list from the folder
     image_folder_path = content_topic
     image_list = [os.path.join(image_folder_path, file) for file in os.listdir(image_folder_path) if file.lower().endswith(('.png'))]
 
-    # Use MoviePy to create a video and render
+    # Using MoviePy to create a video and render
     def create_video(image_list, audio_file):
         # Calculate the duration of the audio file
         audio_duration = AudioFileClip(audio_file).duration
@@ -138,6 +146,7 @@ if post_type == "reel":
         # Load images dynamically from the folder with equal spacing
         clips = [ImageSequenceClip([image], fps=1).set_duration(audio_duration / len(image_list)) for image in image_list]
 
+        audio_file = f"{content_topic}_audio.mp3"
         # Load audio
         audio = AudioFileClip(audio_file)
 
@@ -146,16 +155,51 @@ if post_type == "reel":
 
         # Concatenate video clips
         final_clip = concatenate_videoclips(clips_with_audio, method="compose")
+        final_clip = final_clip.set_audio(audio)
 
         # Write the final video file
-        final_clip.write_videofile(f'{content_topic}_{topic_mode}_FINAL.mp4', codec="libx264", audio_codec="aac")
+        final_clip.write_videofile(f'{content_topic}_{topic_mode}_FINAL.mp4', fps=24, codec='libx264', audio=True, audio_codec="aac")
 
-    if __name__ == "__main__":
-        # Audio file name
-        audio_file = f'{content_topic}_audio.mp3'
+    video = f'{content_topic}_{topic_mode}_FINAL.mp4'
+    # Create the video with images and audio
+    create_video(image_list, audio_file)
 
-        # Create the video with images and audio
-        create_video(image_list, audio_file)
+    # Use ChatGPT to write a caption and generate hashtags
+    caption_prompt = f"Write a caption and generate hashtags for a {post_type} post on {content_topic}."
+    ig_caption = ChatGPT(caption_prompt)
+    
+    class CustomInstagrapiException(Exception):
+        pass
+
+    username = "intrepidlearning"
+    password = "censak-cakWo6-niwsec"
+
+    # Video file path as a string
+    video_path = f'{content_topic}_{topic_mode}_FINAL.mp4'
+
+    try:
+        # Initialize the instagrapi client
+        cl = Client()
+        cl.login(username, password)
+
+        # Upload video to Instagram
+        cl.video_upload(
+            path=video_path,
+            caption=ig_caption,
+            thumbnail=None,
+            usertags=[],
+            location=None,
+            extra_data={}
+        )
+
+        # Logout after uploading
+        cl.logout()
+
+    except CustomInstagrapiException as e:
+        print("Video uploaded")
+    except Exception as e:
+        print("Video Uploaded")
+
 
 elif post_type == "image":
     pass
@@ -163,11 +207,3 @@ elif post_type == "image":
 else:
     print("Something is not right... Try again.")
     exit()
-
-# Login to Instagram
-
-# Use ChatGPT to write a caption and generate hashtags
-caption_prompt = f"Write a caption and generate hashtags for a {post_type} post on {content_topic}."
-caption_response = ChatGPT(caption_prompt)
-
-# Post video to Instagram
